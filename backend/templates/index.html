@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Smart Heat Prediction</title>
+    < style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #0f172a;
+            color: white;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+        .box {
+            background: #020617;
+            padding: 25px;
+            border-radius: 10px;
+            width: 300px;
+            text-align: center;
+            box-shadow: 0 0 20px rgba(0,255,255,0.2);
+        }
+        input {
+            width: 100%;
+            padding: 10px;
+            margin: 15px 0;
+            border-radius: 5px;
+            border: none;
+        }
+        button {
+            width: 100%;
+            padding: 10px;
+            background: cyan;
+            border: none;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .result {
+            margin-top: 15px;
+            font-size: 18px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="box">
+    <h2>🔥 Smart Heat Prediction</h2>
+
+    <input type="number" id="temp" placeholder="Enter Temperature">
+
+    <button onclick="predict()">Predict Risk</button>
+
+    <div class="result" id="result"></div>
+</div>
+
+<script>
+function predict() {
+    const temp = document.getElementById("temp").value;
+
+    fetch("/api/predict", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ temperature: Number(temp) })
+    })
+    .then(res => res.json())
+    .then(data => {
+        document.getElementById("result").innerHTML =
+            "Risk Level: <b>" + data.risk + "</b>";
+    })
+    .catch(() => {
+        document.getElementById("result").innerText = "Error!";
+    });
+}
+</script>
+
+</body>
+</html>
