@@ -1,4 +1,4 @@
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, send_from_directory
 from shpe_pure import SHPEngine
 import os
 
@@ -7,6 +7,11 @@ app = Flask(__name__)
 # ---- SHP Engine ----
 engine = SHPEngine(rows=600)
 engine.start(interval=0.3)
+
+# ---- Home UI ----
+@app.route("/")
+def home():
+    return send_from_directory("backend", "index.html")
 
 # ---- Health check ----
 @app.route("/api/ping")
@@ -26,7 +31,6 @@ def predict():
     data = request.json or {}
 
     temperature = data.get("temperature")
-
     if temperature is None:
         return jsonify({"error": "temperature missing"}), 400
 
