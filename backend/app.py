@@ -1,77 +1,105 @@
-from flask import Flask, request, jsonify, render_template
-import os
+from fastapi import FastAPI
+from pydantic import BaseModel
 
-app = Flask(__name__)
+app = FastAPI(title="Smart Heat Engine API")
 
-# --------------------
-# ROOT (Health + UI)
-# --------------------
-@app.route("/")
-def home():
-    return "Smart Heat Prediction API is running 🚀", 200
+# -----------------------------
+# DATA MODEL
+# -----------------------------
+class HitInput(BaseModel):
+    hit: int
 
 
-# --------------------
-# HEALTH CHECK
-# --------------------
-@app.route("/api/ping")
+# -----------------------------
+# ROOT / HEALTH
+# -----------------------------
+@app.get("/")
+def root():
+    return {"message": "Smart Heat Engine API is running 🚀"}
+
+
+@app.get("/api/ping")
 def ping():
-    return jsonify({"status": "ok"})
+    return {"status": "ok"}
 
 
-# --------------------
-# SYSTEM STATUS
-# --------------------
-@app.route("/api/status")
+@app.get("/api/status")
 def status():
-    return jsonify({
-        "service": "smart-heat-prediction",
+    return {
+        "service": "smart-heat-engine",
         "state": "running"
-    })
+    }
 
 
-# --------------------
-# SMART PREDICTION API
-# --------------------
-@app.route("/api/v1/predict", methods=["POST"])
-def predict():
-    data = request.get_json(silent=True)
+# -----------------------------
+# CORE ENGINE LOGIC
+# -----------------------------
+@app.post("/api/analyze")
+def analyze(data: HitInput):
+    hit = data.hit
 
-    if not data or "temperature" not in data:
-        return jsonify({"error": "temperature missing"}), 400
+    if hit < 60:
+        return {
+            "hit": hit,
+            "state": "MONITOR",
+            "severity": "GREEN",
+            "actions": []
+        }
 
-    temp = float(data["temperature"])
+    elif hit < 65:
+        return {
+            "hit": hit,
+            "state": "WARNING",
+            "severity": "YELLOW",
+            "actions": ["notify_company"]
+        }
 
-    if temp >= 80:
-        risk = "HIGH"
-        score = 0.9
-        message = "Critical heat level detected"
-        action = "Reduce load immediately"
-    elif temp >= 50:
-        risk = "MEDIUM"
-        score = 0.6
-        message = "Heat level rising"
-        action = "Monitor system closely"
+    elif hit < 70:
+        return {
+            "hit": hit,
+            "state": "FAN_ON",
+            "severity": "ORANGE",
+            "actions": ["fan_on"]
+        }
+
+    elif hit < 75:
+        return {
+            "hit": hit,
+            "state": "FULL_COOLING",
+            "severity": "RED",
+            "actions": ["fan_on", "fan_speed_high", "cooling_system_on"]
+        }
+
+    elif hit < 80:
+        return {
+            "hit": hit,
+            "state": "GRADUAL_DATA_SHIFT",
+            "severity": "RED",
+            "actions": [
+                "fan_on",
+                "fan_speed_high",
+                "cooling_system_on",
+                "data_shift_gradual"
+            ]
+        }
+
+    elif hit < 90:
+        return {
+            "hit": hit,
+            "state": "FAST_DATA_SHIFT",
+            "severity": "CRITICAL",
+            "actions": [
+                "fan_on",
+                "fan_speed_high",
+                "cooling_system_on",
+                "data_shift_fast"
+            ]
+        }
+
     else:
-        risk = "LOW"
-        score = 0.2
-        message = "System temperature normal"
-        action = "No action required"
-
-    return jsonify({
-        "temperature": temp,
-        "risk": risk,
-        "score": score,
-        "message": message,
-        "action": action
-    })
-
-
-# --------------------
-# RUN (Render compatible)
-# --------------------
-if __name__ == "__main__":
-    app.run(
-        host="0.0.0.0",
-        port=int(os.environ.get("PORT", 10000))
-    )
+        return {
+            "hit": hit,
+            "state": "EMERGENCY_SHUTDOWN",
+            "severity": "BLACK",
+            "actions": ["shutdown_server"]
+        }
