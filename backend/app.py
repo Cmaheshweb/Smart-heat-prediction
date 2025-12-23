@@ -1,7 +1,21 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
+import random
+import time
+import requests
 
-app = FastAPI(title="Smart Heat Engine API")
+app = FastAPI(
+    title="Smart Heat Engine API",
+    version="1.0",
+    description="Retry + Fail-Safe enabled control system"
+)
+
+# -----------------------------
+# CONFIG
+# -----------------------------
+MAX_RETRIES = 3
+RETRY_DELAY = 2  # seconds
+FAILSAFE_DEFAULT_HIT = 75  # assume danger if unknown
 
 # -----------------------------
 # DATA MODEL
@@ -9,38 +23,12 @@ app = FastAPI(title="Smart Heat Engine API")
 class HitInput(BaseModel):
     hit: int
 
-
 # -----------------------------
-# ROOT / HEALTH
+# CORE LOGIC
 # -----------------------------
-@app.get("/")
-def root():
-    return {"message": "Smart Heat Engine API is running 🚀"}
-
-
-@app.get("/api/ping")
-def ping():
-    return {"status": "ok"}
-
-
-@app.get("/api/status")
-def status():
-    return {
-        "service": "smart-heat-engine",
-        "state": "running"
-    }
-
-
-# -----------------------------
-# CORE ENGINE LOGIC
-# -----------------------------
-@app.post("/api/analyze")
-def analyze(data: HitInput):
-    hit = data.hit
-
+def analyze_hit(hit: int):
     if hit < 60:
         return {
-            "hit": hit,
             "state": "MONITOR",
             "severity": "GREEN",
             "actions": []
@@ -48,7 +36,6 @@ def analyze(data: HitInput):
 
     elif hit < 65:
         return {
-            "hit": hit,
             "state": "WARNING",
             "severity": "YELLOW",
             "actions": ["notify_company"]
@@ -56,7 +43,6 @@ def analyze(data: HitInput):
 
     elif hit < 70:
         return {
-            "hit": hit,
             "state": "FAN_ON",
             "severity": "ORANGE",
             "actions": ["fan_on"]
@@ -64,7 +50,6 @@ def analyze(data: HitInput):
 
     elif hit < 75:
         return {
-            "hit": hit,
             "state": "FULL_COOLING",
             "severity": "RED",
             "actions": ["fan_on", "fan_speed_high", "cooling_system_on"]
@@ -72,7 +57,6 @@ def analyze(data: HitInput):
 
     elif hit < 80:
         return {
-            "hit": hit,
             "state": "GRADUAL_DATA_SHIFT",
             "severity": "RED",
             "actions": [
@@ -85,7 +69,6 @@ def analyze(data: HitInput):
 
     elif hit < 90:
         return {
-            "hit": hit,
             "state": "FAST_DATA_SHIFT",
             "severity": "CRITICAL",
             "actions": [
@@ -98,8 +81,66 @@ def analyze(data: HitInput):
 
     else:
         return {
-            "hit": hit,
             "state": "EMERGENCY_SHUTDOWN",
             "severity": "BLACK",
             "actions": ["shutdown_server"]
         }
+
+# -----------------------------
+# RETRY + FAIL-SAFE SENSOR SIM
+# -----------------------------
+def read_sensor_with_retry():
+    for attempt in range(1, MAX_RETRIES + 1):
+        try:
+            # simulate sensor read (random failure)
+            if random.random() < 0.3:
+                raise Exception("Sensor timeout")
+
+            hit = random.randint(30, 95)
+            return hit, False  # success, not failsafe
+
+        except Exception as e:
+            print(f"[Retry {attempt}] Sensor error:", e)
+            time.sleep(RETRY_DELAY)
+
+    # FAIL-SAFE MODE
+    print("⚠ FAIL-SAFE ACTIVATED")
+    return FAILSAFE_DEFAULT_HIT, True
+
+# -----------------------------
+# ROUTES
+# -----------------------------
+@app.get("/")
+def root():
+    return {"message": "Smart Heat Engine API running 🚀"}
+
+@app.get("/api/ping")
+def ping():
+    return {"status": "ok"}
+
+@app.get("/api/status")
+def status():
+    return {
+        "service": "smart-heat-engine",
+        "mode": "retry + fail-safe",
+        "status": "active"
+    }
+
+@app.post("/api/analyze")
+def analyze(input: HitInput):
+    result = analyze_hit(input.hit)
+    return {
+        "hit": input.hit,
+        **result
+    }
+
+@app.get("/api/simulate")
+def simulate():
+    hit, failsafe = read_sensor_with_retry()
+    result = analyze_hit(hit)
+
+    return {
+        "hit": hit,
+        "failsafe": failsafe,
+        **result
+    }
