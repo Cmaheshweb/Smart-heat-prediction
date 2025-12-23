@@ -2,7 +2,6 @@ from fastapi import FastAPI
 from pydantic import BaseModel
 import random
 import time
-import requests
 
 app = FastAPI(
     title="Smart Heat Engine API",
