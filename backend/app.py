@@ -143,3 +143,28 @@ def simulate():
         "failsafe": failsafe,
         **result
     }
+# -----------------------------
+# LIVE SCREEN STATUS (FOR SERVER TEAM)
+# -----------------------------
+@app.get("/api/live-status")
+def live_status():
+    hit, failsafe = read_sensor_with_retry()
+    analysis = analyze_hit(hit)
+
+    alert = False
+    alert_message = "System Normal"
+
+    if hit >= 75:
+        alert = True
+        alert_message = "⚠ HIGH SERVER LOAD – IMMEDIATE ATTENTION REQUIRED"
+
+    return {
+        "hit": hit,
+        "failsafe": failsafe,
+        "state": analysis["state"],
+        "severity": analysis["severity"],
+        "actions": analysis["actions"],
+        "alert": alert,
+        "alert_message": alert_message,
+        "display_target": "SERVER_TEAM_SCREEN"
+    }
