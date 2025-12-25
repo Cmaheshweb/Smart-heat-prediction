@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Live Server Status</title>
+
+    <!-- AUTO REFRESH 10 SECONDS -->
+    <meta http-equiv="refresh" content="10">
+
+    <style>
+        body {
+            background-color: #020617;
+            color: #e5e7eb;
+            font-family: Arial, sans-serif;
+            padding: 20px;
+        }
+
+        h1 {
+            color: #38bdf8;
+        }
+
+        .card {
+            background-color: #111827;
+            padding: 20px;
+            border-radius: 12px;
+            max-width: 500px;
+        }
+
+        .label {
+            font-weight: bold;
+            color: #94a3b8;
+        }
+
+        .GREEN { color: #4ade80; }
+        .YELLOW { color: #fde047; }
+        .ORANGE { color: #fb923c; }
+        .RED { color: #f87171; }
+        .CRITICAL { color: #f43f5e; }
+        .BLACK {
+            background: #dc2626;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 6px;
+        }
+
+        .alert {
+            margin-top: 20px;
+            font-size: 18px;
+        }
+    </style>
+</head>
+<body>
+
+<h1>🖥️ Live Server Status (Auto refresh 10s)</h1>
+
+<div class="card" id="status">
+    Loading...
+</div>
+
+<script>
+fetch("/api/live-status")
+    .then(response => response.json())
+    .then(data => {
+        document.getElementById("status").innerHTML = `
+            <p><span class="label">HIT :</span> ${data.hit}%</p>
+            <p><span class="label">State :</span>
+                <span class="${data.severity}">${data.state}</span>
+            </p>
+            <p><span class="label">Severity :</span> ${data.severity}</p>
+            <p><span class="label">Actions :</span> ${data.actions.join(", ")}</p>
+
+            <div class="alert">
+                ${data.alert_message}
+            </div>
+        `;
+    })
+    .catch(err => {
+        document.getElementById("status").innerHTML =
+            "<p style='color:red'>API Error</p>";
+    });
+</script>
+
+</body>
+</html>
