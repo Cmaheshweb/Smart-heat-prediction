@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="refresh" content="10">
+<title>Live Server Status</title>
+
+<style>
+body {
+    background:#020617;
+    color:#e5e7eb;
+    font-family: Arial, sans-serif;
+    padding: 20px;
+}
+h1 { color:#38bdf8; }
+
+.card {
+    background:#111827;
+    padding:20px;
+    border-radius:12px;
+    max-width:520px;
+}
+
+.GREEN { color:#4ade80; }
+.YELLOW { color:#fde047; }
+.ORANGE { color:#fb923c; }
+.RED { color:#f87171; }
+.CRITICAL { color:#f43f5e; }
+.BLACK {
+    background:#dc2626;
+    color:white;
+    padding:4px 8px;
+    border-radius:6px;
+}
+.label { color:#94a3b8; font-weight:bold; }
+</style>
+</head>
+
+<body>
+
+<h1>🖥️ Live Server Status</h1>
+<p>Auto refresh every 10 seconds</p>
+
+<div class="card" id="status">Loading...</div>
+
+<script>
+fetch("https://smart-heat-prediction-61pd.onrender.com/api/live-status")
+.then(r => r.json())
+.then(d => {
+document.getElementById("status").innerHTML = `
+<p><span class="label">HIT:</span> ${d.hit}%</p>
+<p><span class="label">STATE:</span>
+   <span class="${d.severity}">${d.state}</span>
+</p>
+<p><span class="label">SEVERITY:</span> ${d.severity}</p>
+<p><span class="label">ACTIONS:</span> ${d.actions.join(", ")}</p>
+<hr>
+<h3>${d.alert_message}</h3>
+`;
+})
+.catch(() => {
+document.getElementById("status").innerHTML =
+"<p style='color:red'>API not reachable</p>";
+});
+</script>
+
+</body>
+</html>
