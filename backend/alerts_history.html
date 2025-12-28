@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="refresh" content="10">
+<title>Alert History</title>
+
+<style>
+body {
+    background:#020617;
+    color:#e5e7eb;
+    font-family: Arial, sans-serif;
+    padding: 20px;
+}
+h1 { color:#f87171; }
+
+.alert {
+    background:#111827;
+    padding:14px;
+    margin:10px 0;
+    border-left:6px solid #f87171;
+    border-radius:10px;
+}
+
+.GREEN { border-color:#4ade80; }
+.YELLOW { border-color:#fde047; }
+.ORANGE { border-color:#fb923c; }
+.RED { border-color:#f87171; }
+.CRITICAL { border-color:#f43f5e; }
+.BLACK { border-color:#000; }
+
+.meta {
+    color:#94a3b8;
+    font-size:13px;
+}
+</style>
+</head>
+
+<body>
+
+<h1>🚨 Alert History</h1>
+<p>Auto refresh every 10 seconds</p>
+
+<div id="alerts">Loading...</div>
+
+<script>
+fetch("https://smart-heat-prediction-61pd.onrender.com/api/alerts")
+.then(r => r.json())
+.then(d => {
+    if (!d.alerts || d.alerts.length === 0) {
+        document.getElementById("alerts").innerHTML =
+            "<p>No alerts yet</p>";
+        return;
+    }
+
+    let html = "";
+    d.alerts.forEach(a => {
+        html += `
+        <div class="alert ${a.severity}">
+            <b>${a.state}</b> | HIT ${a.hit}%<br>
+            ${a.message}<br>
+            <div class="meta">
+                ${a.time} | Source: ${a.source}
+            </div>
+        </div>`;
+    });
+
+    document.getElementById("alerts").innerHTML = html;
+})
+.catch(() => {
+    document.getElementById("alerts").innerHTML =
+        "<p style='color:red'>API not reachable</p>";
+});
+</script>
+
+</body>
+</html>
