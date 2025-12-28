@@ -174,3 +174,34 @@ def get_alert_history():
         "count": len(ALERT_HISTORY),
         "alerts": ALERT_HISTORY
     }
+from fastapi.responses import HTMLResponse
+
+@app.get("/live-screen", response_class=HTMLResponse)
+def live_screen():
+    return """
+<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="refresh" content="10">
+    <title>LIVE SERVER STATUS</title>
+</head>
+<body style="background:black;color:white;font-family:Arial">
+    <h1>LIVE SERVER STATUS</h1>
+    <div id="data">Loading...</div>
+
+<script>
+fetch('/api/live-status')
+.then(r => r.json())
+.then(d => {
+    document.getElementById('data').innerHTML = `
+        HIT: ${d.hit}<br>
+        STATE: ${d.state}<br>
+        SEVERITY: ${d.severity}<br>
+        ACTIONS: ${d.actions.join(', ')}<br>
+        MESSAGE: ${d.alert_message}
+    `;
+});
+</script>
+</body>
+</html>
+"""
