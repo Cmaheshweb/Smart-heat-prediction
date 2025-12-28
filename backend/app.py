@@ -142,29 +142,111 @@ def simulate():
 # -----------------------------
 # LIVE SCREEN STATUS (SERVER TEAM)
 # -----------------------------
-@app.get("/api/live-status")
-def live_status():
-    hit, failsafe = read_sensor_with_retry()
-    result = analyze_hit(hit)
+from fastapi.responses import HTMLResponse
 
-    alert = hit >= 75
-    if alert:
-        save_alert(hit, result)
+@app.get("/live-screen", response_class=HTMLResponse)
+def live_screen():
+    return """
+<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="refresh" content="10">
+    <title>Live Server Status</title>
 
-    return {
-        "hit": hit,
-        "failsafe": failsafe,
-        "state": result["state"],
-        "severity": result["severity"],
-        "actions": result["actions"],
-        "alert": alert,
-        "alert_message": (
-            "⚠ HIGH SERVER LOAD – IMMEDIATE ATTENTION REQUIRED"
-            if alert else "System Normal"
-        ),
-        "display_target": "SERVER_TEAM_SCREEN"
+    <style>
+        body {
+            background: #020617;
+            color: #e5e7eb;
+            font-family: Arial, sans-serif;
+            padding: 20px;
+        }
+
+        h1 {
+            color: #38bdf8;
+        }
+
+        .status-card {
+            background: #111827;
+            padding: 20px;
+            border-radius: 12px;
+            border: 3px solid transparent;
+            max-width: 500px;
+        }
+
+        .label {
+            font-weight: bold;
+            color: #94a3b8;
+        }
+
+        .GREEN { color: #4ade80; }
+        .YELLOW { color: #fde047; }
+        .ORANGE { color: #fb923c; }
+        .RED { color: #f87171; }
+        .CRITICAL { color: #ef4444; }
+
+        /* ===== BLINK ANIMATIONS ===== */
+        @keyframes critical-blink {
+            0%   { border-color: #ef4444; box-shadow: 0 0 12px #ef4444; }
+            50%  { border-color: transparent; box-shadow: none; }
+            100% { border-color: #ef4444; box-shadow: 0 0 12px #ef4444; }
+        }
+
+        @keyframes text-blink {
+            0%   { opacity: 1; }
+            50%  { opacity: 0.3; }
+            100% { opacity: 1; }
+        }
+
+        .status-card.CRITICAL {
+            animation: critical-blink 1s infinite;
+        }
+
+        .alert-text.CRITICAL {
+            animation: text-blink 1s infinite;
+            font-weight: bold;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>🖥️ Live Server Status (Auto refresh 10s)</h1>
+
+    <div id="statusCard" class="status-card">
+        <p><span class="label">HIT:</span> <span id="hitVal">--</span>%</p>
+        <p><span class="label">State:</span> <span id="stateText">--</span></p>
+        <p><span class="label">Severity:</span> <span id="severityText">--</span></p>
+        <p><span class="label">Actions:</span> <span id="actionsText">--</span></p>
+        <hr>
+        <p id="alertText" class="alert-text">Loading...</p>
+    </div>
+
+<script>
+fetch('/api/live-status')
+.then(res => res.json())
+.then(d => {
+
+    const card = document.getElementById("statusCard");
+    const alertText = document.getElementById("alertText");
+
+    document.getElementById("hitVal").innerText = d.hit;
+    document.getElementById("stateText").innerText = d.state;
+    document.getElementById("severityText").innerText = d.severity;
+    document.getElementById("actionsText").innerText = d.actions.join(', ');
+    alertText.innerText = d.alert_message;
+
+    card.classList.remove("CRITICAL");
+    alertText.classList.remove("CRITICAL");
+
+    if (d.severity === "CRITICAL") {
+        card.classList.add("CRITICAL");
+        alertText.classList.add("CRITICAL");
     }
+});
+</script>
 
+</body>
+</html>
+"""
 # -----------------------------
 # ALERT HISTORY API
 # -----------------------------
