@@ -1,1 +1,1 @@
-# Smart-heat-prediction
+mtech-thermal-core
