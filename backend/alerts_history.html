@@ -3,73 +3,67 @@
 <head>
 <meta charset="UTF-8">
 <meta http-equiv="refresh" content="10">
-<title>Alert History</title>
+<title>ALERT HISTORY</title>
 
 <style>
-body {
-    background:#020617;
-    color:#e5e7eb;
-    font-family: Arial, sans-serif;
-    padding: 20px;
+body{
+  background:#020617; color:#e5e7eb;
+  font-family:"Segoe UI",Arial; padding:24px
 }
-h1 { color:#f87171; }
+h1{color:#f87171; margin:0 0 8px 0}
+.sub{color:#94a3b8; margin-bottom:18px}
 
-.alert {
-    background:#111827;
-    padding:14px;
-    margin:10px 0;
-    border-left:6px solid #f87171;
-    border-radius:10px;
+.alert{
+  background:#0f172a;
+  padding:18px; border-radius:14px;
+  margin-bottom:14px;
+  box-shadow:0 10px 30px rgba(0,0,0,.35);
+  border-left:8px solid #ef4444;
 }
+.alert.GREEN{border-color:#22c55e}
+.alert.YELLOW{border-color:#eab308}
+.alert.ORANGE{border-color:#fb923c}
+.alert.RED{border-color:#f87171}
+.alert.CRITICAL{border-color:#ef4444}
+.alert.BLACK{border-color:#000}
 
-.GREEN { border-color:#4ade80; }
-.YELLOW { border-color:#fde047; }
-.ORANGE { border-color:#fb923c; }
-.RED { border-color:#f87171; }
-.CRITICAL { border-color:#f43f5e; }
-.BLACK { border-color:#000; }
-
-.meta {
-    color:#94a3b8;
-    font-size:13px;
+.title{
+  font-size:18px; font-weight:800; letter-spacing:.5px
+}
+.meta{
+  color:#94a3b8; font-size:13px; margin-top:6px
 }
 </style>
 </head>
 
 <body>
 
-<h1>🚨 Alert History</h1>
-<p>Auto refresh every 10 seconds</p>
+<h1>🚨 ALERT HISTORY</h1>
+<div class="sub">Auto-refresh every 10 seconds</div>
 
-<div id="alerts">Loading...</div>
+<div id="list">Loading…</div>
 
 <script>
 fetch("https://smart-heat-prediction-61pd.onrender.com/api/alerts")
-.then(r => r.json())
-.then(d => {
-    if (!d.alerts || d.alerts.length === 0) {
-        document.getElementById("alerts").innerHTML =
-            "<p>No alerts yet</p>";
-        return;
-    }
-
-    let html = "";
-    d.alerts.forEach(a => {
-        html += `
-        <div class="alert ${a.severity}">
-            <b>${a.state}</b> | HIT ${a.hit}%<br>
-            ${a.message}<br>
-            <div class="meta">
-                ${a.time} | Source: ${a.source}
-            </div>
-        </div>`;
-    });
-
-    document.getElementById("alerts").innerHTML = html;
+.then(r=>r.json())
+.then(d=>{
+  if(!d.alerts || d.alerts.length===0){
+    document.getElementById("list").innerHTML="<p>No alerts yet</p>";
+    return;
+  }
+  let html="";
+  d.alerts.forEach(a=>{
+    html+=`
+      <div class="alert ${a.severity}">
+        <div class="title">${a.state} • HIT ${a.hit}%</div>
+        <div>${a.message}</div>
+        <div class="meta">${a.time} | ${a.source}</div>
+      </div>`;
+  });
+  document.getElementById("list").innerHTML=html;
 })
-.catch(() => {
-    document.getElementById("alerts").innerHTML =
-        "<p style='color:red'>API not reachable</p>";
+.catch(()=>{
+  document.getElementById("list").innerHTML="<p>API not reachable</p>";
 });
 </script>
 
