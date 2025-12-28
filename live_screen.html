@@ -3,64 +3,115 @@
 <head>
 <meta charset="UTF-8">
 <meta http-equiv="refresh" content="10">
-<title>Live Server Status</title>
+<title>LIVE SERVER STATUS</title>
 
 <style>
-body {
-    background:#020617;
-    color:#e5e7eb;
-    font-family: Arial, sans-serif;
-    padding: 20px;
+:root{
+  --bg:#020617; --card:#0f172a; --text:#e5e7eb;
+  --green:#22c55e; --yellow:#eab308; --orange:#fb923c;
+  --red:#f87171; --critical:#ef4444; --black:#000;
+  --accent:#38bdf8;
 }
-h1 { color:#38bdf8; }
+*{box-sizing:border-box}
+body{
+  margin:0; padding:24px;
+  background:var(--bg); color:var(--text);
+  font-family: "Segoe UI", Arial, sans-serif;
+}
+.header{
+  display:flex; align-items:center; justify-content:space-between;
+}
+h1{margin:0; color:var(--accent); font-size:34px; letter-spacing:1px}
+.time{color:#94a3b8}
+.grid{
+  margin-top:24px;
+  display:grid; grid-template-columns: 1fr 1fr;
+  gap:20px;
+}
+.card{
+  background:var(--card);
+  border-radius:16px;
+  padding:24px;
+  box-shadow:0 10px 30px rgba(0,0,0,.35);
+}
+.big{
+  font-size:56px; font-weight:700;
+}
+.label{color:#94a3b8; font-weight:600; letter-spacing:.5px}
+.badge{
+  display:inline-block; padding:8px 14px; border-radius:999px;
+  font-weight:700; letter-spacing:.5px; margin-top:8px;
+}
+.GREEN{background:rgba(34,197,94,.15); color:var(--green)}
+.YELLOW{background:rgba(234,179,8,.15); color:var(--yellow)}
+.ORANGE{background:rgba(251,146,60,.15); color:var(--orange)}
+.RED{background:rgba(248,113,113,.15); color:var(--red)}
+.CRITICAL{background:rgba(239,68,68,.2); color:var(--critical)}
+.BLACK{background:#111; color:#fff}
 
-.card {
-    background:#111827;
-    padding:20px;
-    border-radius:12px;
-    max-width:520px;
+.actions{
+  margin-top:12px; display:flex; gap:10px; flex-wrap:wrap
 }
-
-.GREEN { color:#4ade80; }
-.YELLOW { color:#fde047; }
-.ORANGE { color:#fb923c; }
-.RED { color:#f87171; }
-.CRITICAL { color:#f43f5e; }
-.BLACK {
-    background:#dc2626;
-    color:white;
-    padding:4px 8px;
-    border-radius:6px;
+.action{
+  background:#020617; border:1px solid #1f2937;
+  padding:8px 12px; border-radius:10px; font-size:14px
 }
-.label { color:#94a3b8; font-weight:bold; }
+.alert{
+  margin-top:18px; padding:18px; border-radius:14px;
+  background:#020617; border-left:6px solid var(--critical);
+  font-size:20px; font-weight:700
+}
+.footer{
+  margin-top:18px; color:#94a3b8; font-size:13px
+}
 </style>
 </head>
 
 <body>
 
-<h1>🖥️ Live Server Status</h1>
-<p>Auto refresh every 10 seconds</p>
+<div class="header">
+  <h1>🖥️ LIVE SERVER STATUS</h1>
+  <div class="time">Auto-refresh: 10s</div>
+</div>
 
-<div class="card" id="status">Loading...</div>
+<div class="grid">
+  <div class="card">
+    <div class="label">CURRENT HIT</div>
+    <div class="big" id="hit">--%</div>
+    <div id="stateBadge" class="badge">--</div>
+  </div>
+
+  <div class="card">
+    <div class="label">ACTIONS</div>
+    <div class="actions" id="actions"></div>
+    <div class="alert" id="alertMsg">Loading…</div>
+    <div class="footer" id="meta"></div>
+  </div>
+</div>
 
 <script>
 fetch("https://smart-heat-prediction-61pd.onrender.com/api/live-status")
-.then(r => r.json())
-.then(d => {
-document.getElementById("status").innerHTML = `
-<p><span class="label">HIT:</span> ${d.hit}%</p>
-<p><span class="label">STATE:</span>
-   <span class="${d.severity}">${d.state}</span>
-</p>
-<p><span class="label">SEVERITY:</span> ${d.severity}</p>
-<p><span class="label">ACTIONS:</span> ${d.actions.join(", ")}</p>
-<hr>
-<h3>${d.alert_message}</h3>
-`;
+.then(r=>r.json())
+.then(d=>{
+  document.getElementById("hit").innerText = d.hit + "%";
+  const badge = document.getElementById("stateBadge");
+  badge.className = "badge " + d.severity;
+  badge.innerText = d.state + " • " + d.severity;
+
+  const acts = document.getElementById("actions");
+  acts.innerHTML = "";
+  d.actions.forEach(a=>{
+    const el=document.createElement("div");
+    el.className="action"; el.innerText=a;
+    acts.appendChild(el);
+  });
+
+  document.getElementById("alertMsg").innerText = d.alert_message;
+  document.getElementById("meta").innerText =
+    "Source: " + d.source + " | " + d.timestamp;
 })
-.catch(() => {
-document.getElementById("status").innerHTML =
-"<p style='color:red'>API not reachable</p>";
+.catch(()=>{
+  document.getElementById("alertMsg").innerText = "API not reachable";
 });
 </script>
 
