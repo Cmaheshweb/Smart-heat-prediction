@@ -202,3 +202,131 @@ fetch('/api/live-status')
 </body>
 </html>
 """
+# =====================================================
+# MULTI SERVER REGISTRY (IN-MEMORY)
+# =====================================================
+
+SERVERS = {
+    "server-1": {
+        "freeze": False,
+        "hit": 0,
+        "last_update": None
+    },
+    "server-2": {
+        "freeze": False,
+        "hit": 0,
+        "last_update": None
+    },
+    "server-3": {
+        "freeze": False,
+        "hit": 0,
+        "last_update": None
+    }
+}
+
+FREEZE_THRESHOLD = 90
+RELEASE_THRESHOLD = 70
+
+
+# =====================================================
+# FREEZE / RELEASE LOGIC
+# =====================================================
+
+def update_server_freeze(server_id: str, hit: int):
+    server = SERVERS[server_id]
+
+    # FREEZE
+    if hit >= FREEZE_THRESHOLD:
+        server["freeze"] = True
+
+    # RELEASE
+    elif hit <= RELEASE_THRESHOLD:
+        server["freeze"] = False
+
+
+# =====================================================
+# LOAD ROUTER (LOGICAL)
+# =====================================================
+
+def choose_target_server():
+    """
+    Returns server_id where load can be sent.
+    Chooses lowest HIT non-frozen server.
+    """
+    active_servers = {
+        sid: s for sid, s in SERVERS.items() if not s["freeze"]
+    }
+
+    if not active_servers:
+        return None
+
+    return min(active_servers, key=lambda s: active_servers[s]["hit"])
+
+
+# =====================================================
+# MULTI SERVER LIVE STATUS API
+# =====================================================
+
+@app.get("/api/server/{server_id}/live-status")
+def live_status_for_server(server_id: str):
+    if server_id not in SERVERS:
+        return {"error": "Unknown server"}
+
+    hit, failsafe = read_sensor_with_retry()
+    result = analyze_hit(hit)
+
+    # Update server state
+    SERVERS[server_id]["hit"] = hit
+    SERVERS[server_id]["last_update"] = datetime.now().isoformat()
+
+    update_server_freeze(server_id, hit)
+
+    # Save alert if needed
+    if hit >= 75:
+        save_alert(hit, result)
+
+    return {
+        "server_id": server_id,
+        "hit": hit,
+        "freeze": SERVERS[server_id]["freeze"],
+        "failsafe": failsafe,
+        "state": result["state"],
+        "severity": result["severity"],
+        "actions": result["actions"],
+        "message": (
+            "🚫 SERVER FROZEN – TRAFFIC REDIRECTED"
+            if SERVERS[server_id]["freeze"]
+            else "System Normal"
+        ),
+        "display_target": "SERVER_TEAM_SCREEN"
+    }
+
+
+# =====================================================
+# SERVER LIST (DASHBOARD SUPPORT)
+# =====================================================
+
+@app.get("/api/servers")
+def list_servers():
+    return {
+        "count": len(SERVERS),
+        "servers": SERVERS
+    }
+
+
+# =====================================================
+# ROUTER STATUS (WHERE NEW REQUESTS WILL GO)
+# =====================================================
+
+@app.get("/api/router/status")
+def router_status():
+    target = choose_target_server()
+
+    return {
+        "next_target_server": target,
+        "reason": (
+            "Lowest load active server selected"
+            if target else
+            "⚠ ALL SERVERS FROZEN – HOLD REQUESTS"
+        )
+    }
