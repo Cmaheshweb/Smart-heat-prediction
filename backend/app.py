@@ -1,13 +1,12 @@
 from fastapi import FastAPI
-from pydantic import BaseModel
 from fastapi.responses import HTMLResponse
 import random, time
 from datetime import datetime
 
 app = FastAPI(
     title="Smart Heat Engine API",
-    version="FINAL-CLEAN",
-    description="Live Heat Control + Freeze + Multi-Server"
+    version="FINAL-STABLE",
+    description="Live Heat Control + Freeze + Multi-Server + Blink"
 )
 
 # =====================================================
@@ -109,6 +108,13 @@ def choose_target_server():
     return min(active, key=lambda s: active[s]["hit"])
 
 # =====================================================
+# SINGLE (GLOBAL) LIVE STATUS  ✅ FIX 1
+# =====================================================
+@app.get("/api/live-status")
+def global_live_status():
+    return server_status("server-1")
+
+# =====================================================
 # MULTI SERVER LIVE STATUS
 # =====================================================
 @app.get("/api/server/{server_id}/live-status")
@@ -147,38 +153,63 @@ def router_status():
     }
 
 # =====================================================
-# LIVE SCREEN (BLINK)
+# LIVE SCREEN (STRONG BLINK)  ✅ FIX 2
 # =====================================================
 @app.get("/live-screen", response_class=HTMLResponse)
 def live_screen():
     return """
-    <html>
-    <head>
-      <meta http-equiv="refresh" content="10">
-      <style>
-        body { background:black; color:white; font-family:Arial }
-        .CRITICAL { animation: blink 1s infinite }
-        @keyframes blink {
-          0% { color:red } 50% { color:white } 100% { color:red }
-        }
-      </style>
-    </head>
-    <body>
-      <h1>Live Server Status</h1>
-      <div id="data">Loading...</div>
-      <script>
-        fetch('/api/server/server-1/live-status')
-        .then(r=>r.json())
-        .then(d=>{
-          let cls = d.severity === 'CRITICAL' ? 'CRITICAL' : '';
-          document.getElementById('data').innerHTML =
-            `<div class="${cls}">
-              HIT: ${d.hit}%<br>
-              STATE: ${d.state}<br>
-              FREEZE: ${d.freeze}
-            </div>`;
-        });
-      </script>
-    </body>
-    </html>
-    """
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="refresh" content="10">
+<title>Live Server Status</title>
+
+<style>
+body {
+  background:#020617;
+  color:#e5e7eb;
+  font-family:Arial;
+}
+.card {
+  background:#111827;
+  padding:20px;
+  border-radius:12px;
+  border:4px solid #1e293b;
+  width:320px;
+}
+.CRITICAL {
+  animation: blink 1s infinite;
+  border-color:red;
+  box-shadow:0 0 20px red;
+}
+@keyframes blink {
+  0% { opacity:1 }
+  50% { opacity:0.3 }
+  100% { opacity:1 }
+}
+</style>
+</head>
+
+<body>
+<h1>🖥 Live Server Status</h1>
+<div id="card" class="card">Loading...</div>
+
+<script>
+fetch('/api/live-status')
+.then(r=>r.json())
+.then(d=>{
+  const c=document.getElementById('card');
+  c.className='card';
+  if(d.severity==='CRITICAL') c.classList.add('CRITICAL');
+  c.innerHTML=`
+    <b>SERVER:</b> ${d.server_id || 'server-1'}<br>
+    <b>HIT:</b> ${d.hit}%<br>
+    <b>STATE:</b> ${d.state}<br>
+    <b>SEVERITY:</b> ${d.severity}<br>
+    <b>FREEZE:</b> ${d.freeze}
+  `;
+});
+</script>
+</body>
+</html>
+"""
