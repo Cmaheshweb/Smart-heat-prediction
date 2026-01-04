@@ -1,10 +1,9 @@
 from fastapi import FastAPI
-from pydantic import BaseModel
 from fastapi.responses import HTMLResponse
 import random, time
 from datetime import datetime
 
-# ✅ DB IMPORT
+# DB
 from alerts_db import init_db, save_alert_db, fetch_alerts
 
 app = FastAPI(
@@ -14,7 +13,7 @@ app = FastAPI(
 )
 
 # =====================================================
-# INIT DATABASE
+# INIT DB
 # =====================================================
 init_db()
 
@@ -29,7 +28,7 @@ FREEZE_THRESHOLD = 90
 RELEASE_THRESHOLD = 70
 
 # =====================================================
-# SENSOR (SIMULATION)
+# SENSOR (SIM)
 # =====================================================
 def read_sensor():
     for _ in range(MAX_RETRIES):
@@ -52,51 +51,19 @@ def analyze_hit(hit: int):
     elif hit < 70:
         return {"state": "FAN_ON", "severity": "ORANGE", "actions": ["fan_on"]}
     elif hit < 75:
-        return {
-            "state": "FULL_COOLING",
-            "severity": "RED",
-            "actions": ["fan_on", "fan_speed_high", "cooling_system_on"]
-        }
+        return {"state": "FULL_COOLING", "severity": "RED",
+                "actions": ["fan_on", "fan_speed_high", "cooling_system_on"]}
     elif hit < 80:
-        return {
-            "state": "GRADUAL_DATA_SHIFT",
-            "severity": "RED",
-            "actions": ["fan_on", "fan_speed_high", "cooling_system_on", "data_shift_gradual"]
-        }
+        return {"state": "GRADUAL_DATA_SHIFT", "severity": "RED",
+                "actions": ["fan_on", "fan_speed_high",
+                            "cooling_system_on", "data_shift_gradual"]}
     elif hit < 90:
-        return {
-            "state": "FAST_DATA_SHIFT",
-            "severity": "CRITICAL",
-            "actions": ["fan_on", "fan_speed_high", "cooling_system_on", "data_shift_fast"]
-        }
+        return {"state": "FAST_DATA_SHIFT", "severity": "CRITICAL",
+                "actions": ["fan_on", "fan_speed_high",
+                            "cooling_system_on", "data_shift_fast"]}
     else:
-        return {
-            "state": "FREEZE",
-            "severity": "CRITICAL",
-            "actions": ["freeze_incoming_requests", "route_to_standby"]
-        }
-
-# =====================================================
-# ALERT SAVE (PERMANENT)
-# =====================================================
-def save_alert(hit, result):
-    save_alert_db(hit, result["state"], result["severity"])
-
-# =====================================================
-# BASIC ROUTES
-# =====================================================
-@app.get("/")
-def root():
-    return {"message": "Smart Heat Engine running 🚀"}
-
-@app.get("/api/ping")
-def ping():
-    return {"status": "ok"}
-
-@app.get("/api/alerts/history")
-def alert_history():
-    alerts = fetch_alerts()
-    return {"count": len(alerts), "alerts": alerts}
+        return {"state": "FREEZE", "severity": "CRITICAL",
+                "actions": ["freeze_incoming_requests", "route_to_standby"]}
 
 # =====================================================
 # MULTI SERVER REGISTRY
@@ -120,27 +87,9 @@ def choose_target_server():
     return min(active, key=lambda s: active[s]["hit"])
 
 # =====================================================
-# PER SERVER LIVE STATUS
+# CORE SERVER STATUS (SHARED LOGIC)
 # =====================================================
-@app.get("/api/server/{server_id}/live-status")
-def server_status(server_id: str):
-    if server_id not in SERVERS:
-        return {"error": "Unknown server"}
-# =====================================================
-# GLOBAL LIVE STATUS (AUTO ROUTED)
-# =====================================================
-@app.get("/api/live-status")
-def global_live_status():
-    target = choose_target_server()
-
-    if not target:
-        return {
-            "status": "ALL_SERVERS_FROZEN",
-            "message": "⚠ All servers are frozen – holding requests"
-        }
-
-    # Reuse existing per-server logic
-    return server_status(target)
+def get_server_status(server_id: str):
     hit, failsafe = read_sensor()
     result = analyze_hit(hit)
 
@@ -148,21 +97,59 @@ def global_live_status():
     update_server_freeze(server_id, hit)
 
     if hit >= 75:
-        save_alert(hit, result)
+        save_alert_db(hit, result["state"], result["severity"])
 
     return {
         "server_id": server_id,
         "hit": hit,
         "freeze": SERVERS[server_id]["freeze"],
+        "failsafe": failsafe,
         "state": result["state"],
         "severity": result["severity"],
         "actions": result["actions"],
     }
 
-@app.get("/api/servers")
-def list_servers():
-    return SERVERS
+# =====================================================
+# BASIC ROUTES
+# =====================================================
+@app.get("/")
+def root():
+    return {"message": "Smart Heat Engine running 🚀"}
 
+@app.get("/api/ping")
+def ping():
+    return {"status": "ok"}
+
+@app.get("/api/alerts/history")
+def alert_history():
+    alerts = fetch_alerts()
+    return {"count": len(alerts), "alerts": alerts}
+
+# =====================================================
+# PER SERVER LIVE STATUS
+# =====================================================
+@app.get("/api/server/{server_id}/live-status")
+def server_status(server_id: str):
+    if server_id not in SERVERS:
+        return {"error": "Unknown server"}
+    return get_server_status(server_id)
+
+# =====================================================
+# GLOBAL LIVE STATUS
+# =====================================================
+@app.get("/api/live-status")
+def global_live_status():
+    target = choose_target_server()
+    if not target:
+        return {
+            "status": "ALL_SERVERS_FROZEN",
+            "message": "⚠ All servers frozen – holding requests"
+        }
+    return get_server_status(target)
+
+# =====================================================
+# ROUTER STATUS
+# =====================================================
 @app.get("/api/router/status")
 def router_status():
     target = choose_target_server()
@@ -172,7 +159,7 @@ def router_status():
     }
 
 # =====================================================
-# LIVE SCREEN (BLINK + AUTO REFRESH)
+# LIVE SCREEN (BLINK)
 # =====================================================
 @app.get("/live-screen", response_class=HTMLResponse)
 def live_screen():
@@ -182,15 +169,11 @@ def live_screen():
 <head>
 <meta http-equiv="refresh" content="10">
 <title>Live Server Status</title>
-
 <style>
 body { background:#020617; color:#e5e7eb; font-family:Arial; padding:20px }
 .card {
-  background:#111827;
-  padding:20px;
-  border-radius:12px;
-  border:4px solid #1e293b;
-  max-width:500px;
+  background:#111827; padding:20px; border-radius:12px;
+  border:4px solid #1e293b; max-width:500px
 }
 .CRITICAL {
   animation: blink 1s infinite;
@@ -202,20 +185,18 @@ body { background:#020617; color:#e5e7eb; font-family:Arial; padding:20px }
 }
 </style>
 </head>
-
 <body>
 <h1>🖥 Live Server Status</h1>
 <div id="card" class="card">Loading...</div>
-
 <script>
-fetch('/api/server/server-1/live-status')
+fetch('/api/live-status')
 .then(r=>r.json())
 .then(d=>{
   const c=document.getElementById('card');
   c.className='card';
   if(d.severity==='CRITICAL') c.classList.add('CRITICAL');
   c.innerHTML=`
-    <b>SERVER:</b> ${d.server_id}<br>
+    <b>SERVER:</b> ${d.server_id || 'N/A'}<br>
     <b>HIT:</b> ${d.hit}%<br>
     <b>STATE:</b> ${d.state}<br>
     <b>SEVERITY:</b> ${d.severity}<br>
