@@ -126,7 +126,21 @@ def choose_target_server():
 def server_status(server_id: str):
     if server_id not in SERVERS:
         return {"error": "Unknown server"}
+# =====================================================
+# GLOBAL LIVE STATUS (AUTO ROUTED)
+# =====================================================
+@app.get("/api/live-status")
+def global_live_status():
+    target = choose_target_server()
 
+    if not target:
+        return {
+            "status": "ALL_SERVERS_FROZEN",
+            "message": "⚠ All servers are frozen – holding requests"
+        }
+
+    # Reuse existing per-server logic
+    return server_status(target)
     hit, failsafe = read_sensor()
     result = analyze_hit(hit)
 
