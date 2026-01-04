@@ -1,13 +1,22 @@
 from fastapi import FastAPI
+from pydantic import BaseModel
 from fastapi.responses import HTMLResponse
 import random, time
 from datetime import datetime
 
+# ✅ DB IMPORT
+from alerts_db import init_db, save_alert_db, fetch_alerts
+
 app = FastAPI(
     title="Smart Heat Engine API",
     version="FINAL-STABLE",
-    description="Live Heat Control + Freeze + Multi-Server + Blink"
+    description="Live Heat Control + Freeze + Multi-Server + Permanent Alert History"
 )
+
+# =====================================================
+# INIT DATABASE
+# =====================================================
+init_db()
 
 # =====================================================
 # CONFIG
@@ -15,18 +24,12 @@ app = FastAPI(
 MAX_RETRIES = 3
 RETRY_DELAY = 2
 FAILSAFE_DEFAULT_HIT = 75
-MAX_ALERTS = 100
 
 FREEZE_THRESHOLD = 90
 RELEASE_THRESHOLD = 70
 
 # =====================================================
-# ALERT HISTORY
-# =====================================================
-ALERT_HISTORY = []
-
-# =====================================================
-# SENSOR (SIM)
+# SENSOR (SIMULATION)
 # =====================================================
 def read_sensor():
     for _ in range(MAX_RETRIES):
@@ -49,27 +52,35 @@ def analyze_hit(hit: int):
     elif hit < 70:
         return {"state": "FAN_ON", "severity": "ORANGE", "actions": ["fan_on"]}
     elif hit < 75:
-        return {"state": "FULL_COOLING", "severity": "RED",
-                "actions": ["fan_on", "fan_speed_high", "cooling_system_on"]}
+        return {
+            "state": "FULL_COOLING",
+            "severity": "RED",
+            "actions": ["fan_on", "fan_speed_high", "cooling_system_on"]
+        }
     elif hit < 80:
-        return {"state": "GRADUAL_DATA_SHIFT", "severity": "RED",
-                "actions": ["fan_on", "fan_speed_high", "cooling_system_on", "data_shift_gradual"]}
+        return {
+            "state": "GRADUAL_DATA_SHIFT",
+            "severity": "RED",
+            "actions": ["fan_on", "fan_speed_high", "cooling_system_on", "data_shift_gradual"]
+        }
     elif hit < 90:
-        return {"state": "FAST_DATA_SHIFT", "severity": "CRITICAL",
-                "actions": ["fan_on", "fan_speed_high", "cooling_system_on", "data_shift_fast"]}
+        return {
+            "state": "FAST_DATA_SHIFT",
+            "severity": "CRITICAL",
+            "actions": ["fan_on", "fan_speed_high", "cooling_system_on", "data_shift_fast"]
+        }
     else:
-        return {"state": "FREEZE", "severity": "CRITICAL",
-                "actions": ["freeze_incoming_requests", "route_to_standby"]}
+        return {
+            "state": "FREEZE",
+            "severity": "CRITICAL",
+            "actions": ["freeze_incoming_requests", "route_to_standby"]
+        }
 
+# =====================================================
+# ALERT SAVE (PERMANENT)
+# =====================================================
 def save_alert(hit, result):
-    ALERT_HISTORY.append({
-        "time": datetime.now().strftime("%H:%M:%S"),
-        "hit": hit,
-        "state": result["state"],
-        "severity": result["severity"]
-    })
-    if len(ALERT_HISTORY) > MAX_ALERTS:
-        ALERT_HISTORY.pop(0)
+    save_alert_db(hit, result["state"], result["severity"])
 
 # =====================================================
 # BASIC ROUTES
@@ -83,8 +94,9 @@ def ping():
     return {"status": "ok"}
 
 @app.get("/api/alerts/history")
-def alerts():
-    return {"count": len(ALERT_HISTORY), "alerts": ALERT_HISTORY}
+def alert_history():
+    alerts = fetch_alerts()
+    return {"count": len(alerts), "alerts": alerts}
 
 # =====================================================
 # MULTI SERVER REGISTRY
@@ -102,20 +114,13 @@ def update_server_freeze(server_id, hit):
         SERVERS[server_id]["freeze"] = False
 
 def choose_target_server():
-    active = {k:v for k,v in SERVERS.items() if not v["freeze"]}
+    active = {k: v for k, v in SERVERS.items() if not v["freeze"]}
     if not active:
         return None
     return min(active, key=lambda s: active[s]["hit"])
 
 # =====================================================
-# SINGLE (GLOBAL) LIVE STATUS  ✅ FIX 1
-# =====================================================
-@app.get("/api/live-status")
-def global_live_status():
-    return server_status("server-1")
-
-# =====================================================
-# MULTI SERVER LIVE STATUS
+# PER SERVER LIVE STATUS
 # =====================================================
 @app.get("/api/server/{server_id}/live-status")
 def server_status(server_id: str):
@@ -153,7 +158,7 @@ def router_status():
     }
 
 # =====================================================
-# LIVE SCREEN (STRONG BLINK)  ✅ FIX 2
+# LIVE SCREEN (BLINK + AUTO REFRESH)
 # =====================================================
 @app.get("/live-screen", response_class=HTMLResponse)
 def live_screen():
@@ -165,27 +170,21 @@ def live_screen():
 <title>Live Server Status</title>
 
 <style>
-body {
-  background:#020617;
-  color:#e5e7eb;
-  font-family:Arial;
-}
+body { background:#020617; color:#e5e7eb; font-family:Arial; padding:20px }
 .card {
   background:#111827;
   padding:20px;
   border-radius:12px;
   border:4px solid #1e293b;
-  width:320px;
+  max-width:500px;
 }
 .CRITICAL {
   animation: blink 1s infinite;
-  border-color:red;
-  box-shadow:0 0 20px red;
 }
 @keyframes blink {
-  0% { opacity:1 }
-  50% { opacity:0.3 }
-  100% { opacity:1 }
+  0% { border-color:red; box-shadow:0 0 15px red }
+  50% { border-color:transparent; box-shadow:none }
+  100% { border-color:red; box-shadow:0 0 15px red }
 }
 </style>
 </head>
@@ -195,18 +194,19 @@ body {
 <div id="card" class="card">Loading...</div>
 
 <script>
-fetch('/api/live-status')
+fetch('/api/server/server-1/live-status')
 .then(r=>r.json())
 .then(d=>{
   const c=document.getElementById('card');
   c.className='card';
   if(d.severity==='CRITICAL') c.classList.add('CRITICAL');
   c.innerHTML=`
-    <b>SERVER:</b> ${d.server_id || 'server-1'}<br>
+    <b>SERVER:</b> ${d.server_id}<br>
     <b>HIT:</b> ${d.hit}%<br>
     <b>STATE:</b> ${d.state}<br>
     <b>SEVERITY:</b> ${d.severity}<br>
-    <b>FREEZE:</b> ${d.freeze}
+    <b>FREEZE:</b> ${d.freeze}<br>
+    <b>ACTIONS:</b> ${d.actions.join(', ')}
   `;
 });
 </script>
