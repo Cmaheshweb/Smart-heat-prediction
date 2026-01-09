@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="refresh" content="10">
+<title>Live Server Status</title>
+
+<style>
+body { background:#020617; color:#e5e7eb; font-family:Arial; padding:20px }
+.card {
+  background:#111827; padding:20px; border-radius:12px;
+  border:4px solid #1e293b; max-width:520px
+}
+.GREEN{color:#4ade80}
+.YELLOW{color:#fde047}
+.ORANGE{color:#fb923c}
+.RED{color:#f87171}
+.CRITICAL{
+  animation: blink 1s infinite;
+  border-color:#ef4444;
+}
+@keyframes blink {
+  0%{box-shadow:0 0 12px #ef4444}
+  50%{box-shadow:none}
+  100%{box-shadow:0 0 12px #ef4444}
+}
+.badge{
+  padding:4px 8px;border-radius:6px;
+  background:#ef4444;color:white;font-weight:bold
+}
+</style>
+</head>
+
+<body>
+<h1>🖥 Live Server Status</h1>
+<div id="card" class="card">Loading...</div>
+
+<script>
+fetch('/api/live-status')
+.then(r=>r.json())
+.then(d=>{
+  const c=document.getElementById('card');
+  c.className='card '+(d.severity==='CRITICAL'?'CRITICAL':'');
+  c.innerHTML=`
+    <b>SERVER:</b> ${d.server_id}<br>
+    <b>HIT:</b> ${d.hit}%<br>
+    <b>STATE:</b> <span class="${d.severity}">${d.state}</span><br>
+    <b>SEVERITY:</b> ${d.severity}<br>
+    <b>FREEZE:</b> ${d.freeze ? '<span class="badge">FROZEN</span>' : 'NO'}<br>
+    <b>ACTIONS:</b> ${d.actions.join(', ')}<br><br>
+    <b>${d.freeze ? '🚨 Traffic Redirected' : 'System Normal'}</b>
+  `;
+});
+</script>
+</body>
+</html>
