@@ -245,3 +245,103 @@ fetch('/api/live-status')
 </body>
 </html>
 """
+@app.get("/alerts-screen", response_class=HTMLResponse)
+def alerts_screen():
+    return """
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="refresh" content="10">
+<title>Alert History</title>
+<style>
+body { background:#020617; color:#e5e7eb; font-family:Arial; padding:20px }
+.alert {
+  background:#111827;
+  padding:12px;
+  border-left:6px solid red;
+  margin-bottom:10px;
+  border-radius:8px;
+}
+.GREEN { border-color:#4ade80 }
+.YELLOW { border-color:#fde047 }
+.ORANGE { border-color:#fb923c }
+.RED { border-color:#f87171 }
+.CRITICAL { border-color:#ef4444; animation: blink 1s infinite }
+@keyframes blink {
+  0% { opacity:1 } 50% { opacity:0.4 } 100% { opacity:1 }
+}
+</style>
+</head>
+<body>
+
+<h1>🚨 Alert History (Auto refresh 10s)</h1>
+<div id="alerts">Loading...</div>
+
+<script>
+fetch('/api/alerts/history')
+.then(r=>r.json())
+.then(d=>{
+  let html = '';
+  d.alerts.forEach(a=>{
+    html += `
+      <div class="alert ${a.severity}">
+        <b>${a.state}</b> | HIT ${a.hit}%<br>
+        Severity: ${a.severity}<br>
+        Time: ${a.time}
+      </div>
+    `;
+  });
+  document.getElementById('alerts').innerHTML =
+    html || '<p>No alerts yet</p>';
+});
+</script>
+
+</body>
+</html>
+"""
+@app.get("/servers-screen", response_class=HTMLResponse)
+def servers_screen():
+    return """
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="refresh" content="10">
+<title>Servers Status</title>
+<style>
+body { background:#020617; color:#e5e7eb; font-family:Arial; padding:20px }
+.card {
+  background:#111827;
+  padding:14px;
+  border-radius:10px;
+  margin-bottom:12px;
+}
+.FROZEN { border-left:6px solid red }
+.ACTIVE { border-left:6px solid green }
+</style>
+</head>
+<body>
+
+<h1>🗄️ Servers Status</h1>
+<div id="servers">Loading...</div>
+
+<script>
+fetch('/api/servers')
+.then(r=>r.json())
+.then(d=>{
+  let html = '';
+  Object.entries(d).forEach(([id,s])=>{
+    html += `
+      <div class="card ${s.freeze ? 'FROZEN' : 'ACTIVE'}">
+        <b>${id}</b><br>
+        HIT: ${s.hit}%<br>
+        FREEZE: ${s.freeze}
+      </div>
+    `;
+  });
+  document.getElementById('servers').innerHTML = html;
+});
+</script>
+
+</body>
+</html>
+"""
