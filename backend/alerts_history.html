@@ -1,71 +1,43 @@
 <!DOCTYPE html>
 <html>
 <head>
-<meta charset="UTF-8">
 <meta http-equiv="refresh" content="10">
-<title>ALERT HISTORY</title>
+<title>Alert History</title>
 
 <style>
-body{
-  background:#020617; color:#e5e7eb;
-  font-family:"Segoe UI",Arial; padding:24px
-}
-h1{color:#f87171; margin:0 0 8px 0}
-.sub{color:#94a3b8; margin-bottom:18px}
-
+body{background:#020617;color:#e5e7eb;font-family:Arial;padding:20px}
 .alert{
-  background:#0f172a;
-  padding:18px; border-radius:14px;
-  margin-bottom:14px;
-  box-shadow:0 10px 30px rgba(0,0,0,.35);
-  border-left:8px solid #ef4444;
+  background:#111827;padding:14px;margin-bottom:10px;
+  border-left:6px solid #ef4444;border-radius:8px
 }
-.alert.GREEN{border-color:#22c55e}
-.alert.YELLOW{border-color:#eab308}
-.alert.ORANGE{border-color:#fb923c}
-.alert.RED{border-color:#f87171}
-.alert.CRITICAL{border-color:#ef4444}
-.alert.BLACK{border-color:#000}
-
-.title{
-  font-size:18px; font-weight:800; letter-spacing:.5px
-}
-.meta{
-  color:#94a3b8; font-size:13px; margin-top:6px
-}
+.GREEN{border-color:#4ade80}
+.YELLOW{border-color:#fde047}
+.ORANGE{border-color:#fb923c}
+.RED{border-color:#f87171}
+.CRITICAL{border-color:#ef4444}
 </style>
 </head>
 
 <body>
-
-<h1>🚨 ALERT HISTORY</h1>
-<div class="sub">Auto-refresh every 10 seconds</div>
-
-<div id="list">Loading…</div>
+<h1>🚨 Alert History</h1>
+<div id="alerts">Loading...</div>
 
 <script>
-fetch("https://smart-heat-prediction-61pd.onrender.com/api/alerts")
+fetch('/api/alerts/history')
 .then(r=>r.json())
 .then(d=>{
-  if(!d.alerts || d.alerts.length===0){
-    document.getElementById("list").innerHTML="<p>No alerts yet</p>";
-    return;
-  }
-  let html="";
+  let html='';
   d.alerts.forEach(a=>{
     html+=`
       <div class="alert ${a.severity}">
-        <div class="title">${a.state} • HIT ${a.hit}%</div>
-        <div>${a.message}</div>
-        <div class="meta">${a.time} | ${a.source}</div>
+        <b>${a.state}</b> | HIT ${a.hit}%<br>
+        Severity: ${a.severity}<br>
+        Time: ${a.time}
       </div>`;
   });
-  document.getElementById("list").innerHTML=html;
-})
-.catch(()=>{
-  document.getElementById("list").innerHTML="<p>API not reachable</p>";
+  document.getElementById('alerts').innerHTML =
+    html || '<p>No alerts yet</p>';
 });
 </script>
-
 </body>
 </html>
