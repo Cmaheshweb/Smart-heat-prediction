@@ -1,14 +1,12 @@
 from fastapi import FastAPI
-from pydantic import BaseModel
 from fastapi.responses import HTMLResponse
 import random, time
 from datetime import datetime
-
-# ===============================
-# DATABASE (SQLite – permanent)
-# ===============================
 import sqlite3
 
+# =====================================================
+# DATABASE (SQLite – permanent)
+# =====================================================
 DB_FILE = "alerts.db"
 
 def init_db():
@@ -39,7 +37,9 @@ def save_alert_db(hit, state, severity):
 def fetch_alerts():
     conn = sqlite3.connect(DB_FILE)
     cur = conn.cursor()
-    cur.execute("SELECT time, hit, state, severity FROM alerts ORDER BY id DESC LIMIT 100")
+    cur.execute(
+        "SELECT time, hit, state, severity FROM alerts ORDER BY id DESC LIMIT 100"
+    )
     rows = cur.fetchall()
     conn.close()
     return [
@@ -49,18 +49,18 @@ def fetch_alerts():
 
 init_db()
 
-# ===============================
+# =====================================================
 # FASTAPI APP
-# ===============================
+# =====================================================
 app = FastAPI(
     title="Smart Heat Engine API",
     version="FINAL-STABLE",
     description="Live Heat Control + Freeze + Multi-Server + Blink + Alert History"
 )
 
-# ===============================
+# =====================================================
 # CONFIG
-# ===============================
+# =====================================================
 MAX_RETRIES = 3
 RETRY_DELAY = 2
 FAILSAFE_DEFAULT_HIT = 75
@@ -68,9 +68,9 @@ FAILSAFE_DEFAULT_HIT = 75
 FREEZE_THRESHOLD = 90
 RELEASE_THRESHOLD = 70
 
-# ===============================
+# =====================================================
 # SENSOR (SIMULATION)
-# ===============================
+# =====================================================
 def read_sensor():
     for _ in range(MAX_RETRIES):
         try:
@@ -81,9 +81,9 @@ def read_sensor():
             time.sleep(RETRY_DELAY)
     return FAILSAFE_DEFAULT_HIT, True
 
-# ===============================
+# =====================================================
 # CORE LOGIC
-# ===============================
+# =====================================================
 def analyze_hit(hit: int):
     if hit < 60:
         return {"state": "MONITOR", "severity": "GREEN", "actions": []}
@@ -104,13 +104,12 @@ def analyze_hit(hit: int):
         return {"state": "FREEZE", "severity": "CRITICAL",
                 "actions": ["freeze_incoming_requests", "route_to_standby"]}
 
-# ===============================
-# MULTI SERVER REGISTRY
-# ===============================
+# =====================================================
+# MULTI SERVER REGISTRY (SCALABLE)
+# =====================================================
 SERVERS = {
-    "server-1": {"freeze": False, "hit": 0},
-    "server-2": {"freeze": False, "hit": 0},
-    "server-3": {"freeze": False, "hit": 0},
+    f"server-{i}": {"freeze": False, "hit": 0}
+    for i in range(1, 4)
 }
 
 def update_server_freeze(server_id, hit):
@@ -125,9 +124,9 @@ def choose_target_server():
         return None
     return min(active, key=lambda s: active[s]["hit"])
 
-# ===============================
+# =====================================================
 # BASIC ROUTES
-# ===============================
+# =====================================================
 @app.get("/")
 def root():
     return {"message": "Smart Heat Engine running 🚀"}
@@ -136,9 +135,9 @@ def root():
 def ping():
     return {"status": "ok"}
 
-# ===============================
+# =====================================================
 # PER SERVER LIVE STATUS
-# ===============================
+# =====================================================
 @app.get("/api/server/{server_id}/live-status")
 def server_status(server_id: str):
     if server_id not in SERVERS:
@@ -162,19 +161,35 @@ def server_status(server_id: str):
         "actions": result["actions"],
     }
 
-# ===============================
-# GLOBAL LIVE STATUS
-# ===============================
+# =====================================================
+# GLOBAL LIVE STATUS (ALWAYS STRUCTURED)
+# =====================================================
 @app.get("/api/live-status")
 def global_live_status():
     target = choose_target_server()
+
     if not target:
-        return {"status": "ALL_SERVERS_FROZEN"}
+        return {
+            "server_id": "NONE",
+            "hit": 100,
+            "freeze": True,
+            "state": "ALL_SERVERS_FROZEN",
+            "severity": "CRITICAL",
+            "actions": []
+        }
+
     return server_status(target)
 
-# ===============================
+# =====================================================
+# SERVERS API (FIXED)
+# =====================================================
+@app.get("/api/servers")
+def list_servers():
+    return SERVERS
+
+# =====================================================
 # ROUTER STATUS
-# ===============================
+# =====================================================
 @app.get("/api/router/status")
 def router_status():
     target = choose_target_server()
@@ -183,17 +198,17 @@ def router_status():
         "reason": "Lowest load active server" if target else "ALL SERVERS FROZEN"
     }
 
-# ===============================
+# =====================================================
 # ALERT HISTORY API
-# ===============================
+# =====================================================
 @app.get("/api/alerts/history")
 def alert_history():
     alerts = fetch_alerts()
     return {"count": len(alerts), "alerts": alerts}
 
-# ===============================
-# LIVE SCREEN (BLINK + AUTO REFRESH)
-# ===============================
+# =====================================================
+# LIVE SCREEN
+# =====================================================
 @app.get("/live-screen", response_class=HTMLResponse)
 def live_screen():
     return """
@@ -245,6 +260,10 @@ fetch('/api/live-status')
 </body>
 </html>
 """
+
+# =====================================================
+# ALERT HISTORY SCREEN
+# =====================================================
 @app.get("/alerts-screen", response_class=HTMLResponse)
 def alerts_screen():
     return """
@@ -273,32 +292,33 @@ body { background:#020617; color:#e5e7eb; font-family:Arial; padding:20px }
 </style>
 </head>
 <body>
-
-<h1>🚨 Alert History (Auto refresh 10s)</h1>
+<h1>🚨 Alert History</h1>
 <div id="alerts">Loading...</div>
 
 <script>
 fetch('/api/alerts/history')
 .then(r=>r.json())
 .then(d=>{
-  let html = '';
+  let html='';
   d.alerts.forEach(a=>{
-    html += `
+    html+=`
       <div class="alert ${a.severity}">
         <b>${a.state}</b> | HIT ${a.hit}%<br>
         Severity: ${a.severity}<br>
         Time: ${a.time}
-      </div>
-    `;
+      </div>`;
   });
   document.getElementById('alerts').innerHTML =
     html || '<p>No alerts yet</p>';
 });
 </script>
-
 </body>
 </html>
 """
+
+# =====================================================
+# SERVERS SCREEN
+# =====================================================
 @app.get("/servers-screen", response_class=HTMLResponse)
 def servers_screen():
     return """
@@ -320,28 +340,25 @@ body { background:#020617; color:#e5e7eb; font-family:Arial; padding:20px }
 </style>
 </head>
 <body>
-
-<h1>🗄️ Servers Status</h1>
+<h1>🗄 Servers Status</h1>
 <div id="servers">Loading...</div>
 
 <script>
 fetch('/api/servers')
 .then(r=>r.json())
 .then(d=>{
-  let html = '';
+  let html='';
   Object.entries(d).forEach(([id,s])=>{
-    html += `
-      <div class="card ${s.freeze ? 'FROZEN' : 'ACTIVE'}">
+    html+=`
+      <div class="card ${s.freeze?'FROZEN':'ACTIVE'}">
         <b>${id}</b><br>
         HIT: ${s.hit}%<br>
         FREEZE: ${s.freeze}
-      </div>
-    `;
+      </div>`;
   });
-  document.getElementById('servers').innerHTML = html;
+  document.getElementById('servers').innerHTML=html;
 });
 </script>
-
 </body>
 </html>
 """
