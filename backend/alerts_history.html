@@ -8,20 +8,16 @@
 body {
   background:#020617;
   color:#e5e7eb;
-  font-family:Inter, Arial;
-  padding:24px;
+  font-family:Arial;
+  padding:20px;
 }
-
-h1 { color:#f87171 }
-
 .alert {
   background:#111827;
-  padding:14px;
-  border-left:6px solid;
-  border-radius:10px;
-  margin-bottom:14px;
+  padding:12px;
+  border-left:6px solid red;
+  margin-bottom:10px;
+  border-radius:8px;
 }
-
 .GREEN { border-color:#4ade80 }
 .YELLOW { border-color:#fde047 }
 .ORANGE { border-color:#fb923c }
@@ -30,39 +26,31 @@ h1 { color:#f87171 }
   border-color:#ef4444;
   animation: blink 1s infinite;
 }
-
 @keyframes blink {
-  0%{opacity:1}
-  50%{opacity:0.5}
-  100%{opacity:1}
-}
-
-.meta {
-  color:#94a3b8;
-  font-size:13px;
+  0% { opacity:1 }
+  50% { opacity:0.4 }
+  100% { opacity:1 }
 }
 </style>
 </head>
 
 <body>
-
-<h1>🚨 Alert History</h1>
-<div id="alerts">Loading…</div>
+<h1>🚨 Alert History (Auto refresh 10s)</h1>
+<div id="alerts">Loading...</div>
 
 <script>
 fetch('/api/alerts/history')
-.then(r=>r.json())
-.then(d=>{
-  let html='';
-  d.alerts.forEach(a=>{
-    html+=`
+.then(r => r.json())
+.then(d => {
+  let html = '';
+  d.alerts.forEach(a => {
+    html += `
       <div class="alert ${a.severity}">
         <b>${a.state}</b> | HIT ${a.hit}%<br>
-        <div class="meta">
-          Severity: ${a.severity}<br>
-          Time: ${a.time}
-        </div>
-      </div>`;
+        Severity: ${a.severity}<br>
+        Time: ${a.time}
+      </div>
+    `;
   });
   document.getElementById('alerts').innerHTML =
     html || '<p>No alerts yet</p>';
