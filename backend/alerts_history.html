@@ -1,43 +1,90 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+<meta charset="UTF-8">
 <meta http-equiv="refresh" content="10">
 <title>Alert History</title>
 
 <style>
-body{background:#020617;color:#e5e7eb;font-family:Arial;padding:20px}
-.alert{
-  background:#111827;padding:14px;margin-bottom:10px;
-  border-left:6px solid #ef4444;border-radius:8px
-}
-.GREEN{border-color:#4ade80}
-.YELLOW{border-color:#fde047}
-.ORANGE{border-color:#fb923c}
-.RED{border-color:#f87171}
-.CRITICAL{border-color:#ef4444}
+    body {
+        background: #020617;
+        color: #e5e7eb;
+        font-family: Arial, sans-serif;
+        padding: 20px;
+    }
+
+    h1 {
+        color: #f87171;
+        margin-bottom: 20px;
+    }
+
+    .alert {
+        background: #111827;
+        padding: 14px;
+        border-radius: 10px;
+        margin-bottom: 12px;
+        border-left: 6px solid #64748b;
+    }
+
+    .GREEN { border-color: #4ade80; }
+    .YELLOW { border-color: #fde047; }
+    .ORANGE { border-color: #fb923c; }
+    .RED { border-color: #f87171; }
+
+    .CRITICAL {
+        border-color: #ef4444;
+        animation: blink 1s infinite;
+    }
+
+    @keyframes blink {
+        0%   { opacity: 1; }
+        50%  { opacity: 0.4; }
+        100% { opacity: 1; }
+    }
+
+    .meta {
+        font-size: 13px;
+        color: #94a3b8;
+        margin-top: 6px;
+    }
 </style>
 </head>
 
 <body>
-<h1>🚨 Alert History</h1>
+
+<h1>🚨 Alert History (Auto refresh 10s)</h1>
+
 <div id="alerts">Loading...</div>
 
 <script>
 fetch('/api/alerts/history')
-.then(r=>r.json())
-.then(d=>{
-  let html='';
-  d.alerts.forEach(a=>{
-    html+=`
-      <div class="alert ${a.severity}">
-        <b>${a.state}</b> | HIT ${a.hit}%<br>
-        Severity: ${a.severity}<br>
-        Time: ${a.time}
-      </div>`;
-  });
-  document.getElementById('alerts').innerHTML =
-    html || '<p>No alerts yet</p>';
+.then(response => response.json())
+.then(data => {
+    let html = '';
+
+    if (data.alerts.length === 0) {
+        html = '<p>No alerts yet</p>';
+    } else {
+        data.alerts.forEach(alert => {
+            html += `
+                <div class="alert ${alert.severity}">
+                    <b>${alert.state}</b> | HIT ${alert.hit}%<br>
+                    Severity: ${alert.severity}
+                    <div class="meta">
+                        Time: ${alert.time}
+                    </div>
+                </div>
+            `;
+        });
+    }
+
+    document.getElementById('alerts').innerHTML = html;
+})
+.catch(err => {
+    document.getElementById('alerts').innerHTML =
+        '<p style="color:red">Failed to load alert history</p>';
 });
 </script>
+
 </body>
 </html>
