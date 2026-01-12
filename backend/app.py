@@ -237,3 +237,32 @@ def alert_history():
         "count": len(alerts),
         "alerts": alerts
     }
+from fastapi.responses import HTMLResponse
+from fastapi.templating import Jinja2Templates
+from fastapi import Request
+
+templates = Jinja2Templates(directory="templates")
+
+
+@app.get("/live-screen", response_class=HTMLResponse)
+def live_screen(request: Request):
+    return templates.TemplateResponse(
+        "live_screen.html",
+        {"request": request}
+    )
+
+
+@app.get("/alerts-screen", response_class=HTMLResponse)
+def alerts_screen(request: Request):
+    return templates.TemplateResponse(
+        "alerts_history.html",
+        {"request": request}
+    )
+
+
+@app.get("/servers-screen", response_class=HTMLResponse)
+def servers_screen(request: Request):
+    return templates.TemplateResponse(
+        "servers_screen.html",
+        {"request": request}
+    )
