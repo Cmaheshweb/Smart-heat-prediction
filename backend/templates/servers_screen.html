@@ -1,39 +1,98 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+<meta charset="UTF-8">
 <meta http-equiv="refresh" content="10">
-<title>Servers Overview</title>
+<title>Servers Status</title>
 
 <style>
-body{background:#020617;color:#e5e7eb;font-family:Arial;padding:20px}
-.card{
- background:#111827;padding:14px;margin-bottom:10px;
- border-radius:10px
-}
-.FROZEN{border-left:6px solid #ef4444}
-.ACTIVE{border-left:6px solid #4ade80}
+    body {
+        background: #020617;
+        color: #e5e7eb;
+        font-family: Arial, sans-serif;
+        padding: 20px;
+    }
+
+    h1 {
+        color: #38bdf8;
+        margin-bottom: 20px;
+    }
+
+    .server-card {
+        background: #111827;
+        padding: 16px;
+        border-radius: 12px;
+        margin-bottom: 14px;
+        border-left: 6px solid #22c55e;
+    }
+
+    .server-card.FROZEN {
+        border-left-color: #ef4444;
+        animation: blink 1.2s infinite;
+    }
+
+    .label {
+        color: #94a3b8;
+        font-weight: bold;
+    }
+
+    .ACTIVE {
+        color: #4ade80;
+    }
+
+    .FROZEN_TEXT {
+        color: #f87171;
+        font-weight: bold;
+    }
+
+    @keyframes blink {
+        0%   { box-shadow: 0 0 10px #ef4444; }
+        50%  { box-shadow: none; }
+        100% { box-shadow: 0 0 10px #ef4444; }
+    }
 </style>
 </head>
 
 <body>
-<h1>🧠 Servers Overview</h1>
+
+<h1>🗄️ Servers Status (Auto refresh 10s)</h1>
+
 <div id="servers">Loading...</div>
 
 <script>
 fetch('/api/servers')
-.then(r=>r.json())
-.then(d=>{
-  let html='';
-  Object.entries(d).forEach(([id,s])=>{
-    html+=`
-      <div class="card ${s.freeze?'FROZEN':'ACTIVE'}">
-        <b>${id}</b><br>
-        HIT: ${s.hit}%<br>
-        FREEZE: ${s.freeze}
-      </div>`;
-  });
-  document.getElementById('servers').innerHTML=html;
+.then(res => res.json())
+.then(data => {
+
+    let html = '';
+
+    Object.entries(data).forEach(([serverId, info]) => {
+
+        const frozen = info.freeze === true;
+        const cardClass = frozen ? 'server-card FROZEN' : 'server-card';
+
+        html += `
+            <div class="${cardClass}">
+                <p><span class="label">Server:</span> ${serverId}</p>
+                <p><span class="label">HIT:</span> ${info.hit}%</p>
+                <p>
+                    <span class="label">Status:</span>
+                    ${frozen
+                        ? '<span class="FROZEN_TEXT">FROZEN</span>'
+                        : '<span class="ACTIVE">ACTIVE</span>'}
+                </p>
+            </div>
+        `;
+    });
+
+    document.getElementById('servers').innerHTML =
+        html || '<p>No servers found</p>';
+})
+.catch(() => {
+    document.getElementById('servers').innerHTML =
+        '<p style="color:red">Failed to load servers data</p>';
 });
 </script>
+
 </body>
 </html>
