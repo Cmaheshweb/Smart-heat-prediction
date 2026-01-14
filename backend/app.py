@@ -1,10 +1,11 @@
 from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
 import random, time
 from datetime import datetime
 import sqlite3
 
 # =====================================================
-# DATABASE (SQLite – permanent alert history)
+# DATABASE (SQLite – permanent)
 # =====================================================
 DB_FILE = "alerts.db"
 
@@ -28,17 +29,16 @@ def save_alert_db(hit, state, severity):
     cur = conn.cursor()
     cur.execute(
         "INSERT INTO alerts (time, hit, state, severity) VALUES (?, ?, ?, ?)",
-        (datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"), hit, state, severity)
+        (datetime.now().strftime("%Y-%m-%d %H:%M:%S"), hit, state, severity)
     )
     conn.commit()
     conn.close()
 
-def fetch_alerts(limit=100):
+def fetch_alerts():
     conn = sqlite3.connect(DB_FILE)
     cur = conn.cursor()
     cur.execute(
-        "SELECT time, hit, state, severity FROM alerts ORDER BY id DESC LIMIT ?",
-        (limit,)
+        "SELECT time, hit, state, severity FROM alerts ORDER BY id DESC LIMIT 100"
     )
     rows = cur.fetchall()
     conn.close()
@@ -54,9 +54,17 @@ init_db()
 # =====================================================
 app = FastAPI(
     title="Smart Heat Engine API",
-    version="FINAL-PRODUCTION",
-    description="Live Heat Control + Freeze + Multi-Server + Permanent Alerts"
+    version="FINAL-CLEAN",
+    description="API + Static UI (Live / Alerts / Servers)"
 )
+
+# =====================================================
+# STATIC UI (🔥 IMPORTANT FIX)
+# =====================================================
+# templates/alerts_history.html
+# templates/live_screen.html
+# templates/servers_screen.html
+app.mount("/ui", StaticFiles(directory="templates"), name="ui")
 
 # =====================================================
 # CONFIG
@@ -67,9 +75,6 @@ FAILSAFE_DEFAULT_HIT = 75
 
 FREEZE_THRESHOLD = 90
 RELEASE_THRESHOLD = 70
-
-# 🔥 CHANGE ONLY THIS NUMBER FOR SCALE
-TOTAL_SERVERS = 10   # 10 / 50 / 1000 / any
 
 # =====================================================
 # SENSOR (SIMULATION)
@@ -104,36 +109,27 @@ def analyze_hit(hit: int):
         return {
             "state": "GRADUAL_DATA_SHIFT",
             "severity": "RED",
-            "actions": [
-                "fan_on", "fan_speed_high",
-                "cooling_system_on", "data_shift_gradual"
-            ]
+            "actions": ["fan_on", "fan_speed_high", "cooling_system_on", "data_shift_gradual"]
         }
     elif hit < 90:
         return {
             "state": "FAST_DATA_SHIFT",
             "severity": "CRITICAL",
-            "actions": [
-                "fan_on", "fan_speed_high",
-                "cooling_system_on", "data_shift_fast"
-            ]
+            "actions": ["fan_on", "fan_speed_high", "cooling_system_on", "data_shift_fast"]
         }
     else:
         return {
             "state": "FREEZE",
             "severity": "CRITICAL",
-            "actions": [
-                "freeze_incoming_requests",
-                "route_to_standby"
-            ]
+            "actions": ["freeze_incoming_requests", "route_to_standby"]
         }
 
 # =====================================================
-# MULTI SERVER REGISTRY (AUTO SCALE)
+# MULTI SERVER REGISTRY (SCALABLE)
 # =====================================================
 SERVERS = {
     f"server-{i}": {"freeze": False, "hit": 0}
-    for i in range(1, TOTAL_SERVERS + 1)
+    for i in range(1, 4)
 }
 
 def update_server_freeze(server_id, hit):
@@ -153,7 +149,14 @@ def choose_target_server():
 # =====================================================
 @app.get("/")
 def root():
-    return {"message": "Smart Heat Engine running 🚀"}
+    return {
+        "message": "Smart Heat Engine running 🚀",
+        "ui": {
+            "live": "/ui/live_screen.html",
+            "alerts": "/ui/alerts_history.html",
+            "servers": "/ui/servers_screen.html"
+        }
+    }
 
 @app.get("/api/ping")
 def ping():
@@ -180,14 +183,13 @@ def server_status(server_id: str):
         "server_id": server_id,
         "hit": hit,
         "freeze": SERVERS[server_id]["freeze"],
-        "failsafe": failsafe,
         "state": result["state"],
         "severity": result["severity"],
         "actions": result["actions"],
     }
 
 # =====================================================
-# GLOBAL LIVE STATUS (AUTO ROUTED)
+# GLOBAL LIVE STATUS
 # =====================================================
 @app.get("/api/live-status")
 def global_live_status():
@@ -206,13 +208,6 @@ def global_live_status():
     return server_status(target)
 
 # =====================================================
-# SERVERS LIST
-# =====================================================
-@app.get("/api/servers")
-def list_servers():
-    return SERVERS
-
-# =====================================================
 # ROUTER STATUS
 # =====================================================
 @app.get("/api/router/status")
@@ -220,11 +215,7 @@ def router_status():
     target = choose_target_server()
     return {
         "next_target_server": target,
-        "reason": (
-            "Lowest load active server selected"
-            if target else
-            "ALL SERVERS FROZEN"
-        )
+        "reason": "Lowest load active server" if target else "ALL SERVERS FROZEN"
     }
 
 # =====================================================
@@ -233,36 +224,4 @@ def router_status():
 @app.get("/api/alerts/history")
 def alert_history():
     alerts = fetch_alerts()
-    return {
-        "count": len(alerts),
-        "alerts": alerts
-    }
-from fastapi.responses import HTMLResponse
-from fastapi.templating import Jinja2Templates
-from fastapi import Request
-
-templates = Jinja2Templates(directory="templates")
-
-
-@app.get("/live-screen", response_class=HTMLResponse)
-def live_screen(request: Request):
-    return templates.TemplateResponse(
-        "live_screen.html",
-        {"request": request}
-    )
-
-
-@app.get("/alerts-screen", response_class=HTMLResponse)
-def alerts_screen(request: Request):
-    return templates.TemplateResponse(
-        "alerts_history.html",
-        {"request": request}
-    )
-
-
-@app.get("/servers-screen", response_class=HTMLResponse)
-def servers_screen(request: Request):
-    return templates.TemplateResponse(
-        "servers_screen.html",
-        {"request": request}
-    )
+    return {"count": len(alerts), "alerts": alerts}
