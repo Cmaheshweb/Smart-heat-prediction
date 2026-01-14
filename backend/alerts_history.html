@@ -1,59 +1,90 @@
 <!DOCTYPE html>
-<html>
+<html lang="mr">
 <head>
+<meta charset="UTF-8">
 <meta http-equiv="refresh" content="10">
 <title>Alert History</title>
 
 <style>
 body {
-  background:#020617;
-  color:#e5e7eb;
-  font-family:Arial;
-  padding:20px;
+    background:#020617;
+    color:#e5e7eb;
+    font-family: Arial, sans-serif;
+    padding:20px;
 }
+
+h1 {
+    color:#f87171;
+}
+
 .alert {
-  background:#111827;
-  padding:12px;
-  border-left:6px solid red;
-  margin-bottom:10px;
-  border-radius:8px;
+    background:#111827;
+    padding:14px;
+    border-left:6px solid #64748b;
+    margin-bottom:12px;
+    border-radius:8px;
 }
-.GREEN { border-color:#4ade80 }
-.YELLOW { border-color:#fde047 }
-.ORANGE { border-color:#fb923c }
-.RED { border-color:#f87171 }
+
+.GREEN { border-color:#4ade80; }
+.YELLOW { border-color:#fde047; }
+.ORANGE { border-color:#fb923c; }
+.RED { border-color:#f87171; }
 .CRITICAL {
-  border-color:#ef4444;
-  animation: blink 1s infinite;
+    border-color:#ef4444;
+    animation: blink 1s infinite;
 }
+
 @keyframes blink {
-  0% { opacity:1 }
-  50% { opacity:0.4 }
-  100% { opacity:1 }
+    0% { opacity:1 }
+    50% { opacity:0.4 }
+    100% { opacity:1 }
+}
+
+.meta {
+    font-size:13px;
+    color:#94a3b8;
+    margin-top:6px;
 }
 </style>
 </head>
 
 <body>
+
 <h1>🚨 Alert History (Auto refresh 10s)</h1>
-<div id="alerts">Loading...</div>
+
+<div id="alerts">Loading alerts...</div>
 
 <script>
-fetch('/api/alerts/history')
-.then(r => r.json())
-.then(d => {
-  let html = '';
-  d.alerts.forEach(a => {
-    html += `
-      <div class="alert ${a.severity}">
-        <b>${a.state}</b> | HIT ${a.hit}%<br>
-        Severity: ${a.severity}<br>
-        Time: ${a.time}
-      </div>
-    `;
-  });
-  document.getElementById('alerts').innerHTML =
-    html || '<p>No alerts yet</p>';
+const API_URL = window.location.origin + '/api/alerts/history';
+
+fetch(API_URL)
+.then(res => res.json())
+.then(data => {
+    const container = document.getElementById('alerts');
+
+    if (!data.alerts || data.alerts.length === 0) {
+        container.innerHTML = '<p>No alerts yet</p>';
+        return;
+    }
+
+    let html = '';
+    data.alerts.forEach(a => {
+        html += `
+        <div class="alert ${a.severity}">
+            <b>${a.state}</b> | HIT ${a.hit}%<br>
+            <div class="meta">
+                Severity: ${a.severity}<br>
+                Time: ${a.time}
+            </div>
+        </div>
+        `;
+    });
+
+    container.innerHTML = html;
+})
+.catch(err => {
+    document.getElementById('alerts').innerHTML =
+        '<p style="color:red">Failed to load alerts</p>';
 });
 </script>
 
